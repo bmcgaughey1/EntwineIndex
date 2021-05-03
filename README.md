@@ -24,4 +24,22 @@ The direct link to the
 is:
 `https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg`
 
-This code is very much in development so don’t expect much…
+When using the index, it is probably best to grab a copy of the index
+and store it locally. However, you can read the index directly from
+GitHub.
+
+``` r
+url <- "https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg"
+
+# use rgdal to read the geopackage
+library(rgdal)
+
+# read directly
+projects <- rgdal::readOGR(dsn = url, verbose = F, stringsAsFactors = FALSE)
+
+# download to local file, then read using utils library
+library(utils)
+if (!utils::download.file(url, "ENTWINEBoundaries.gpkg", mode = "wb",)) {
+  projects <- rgdal::readOGR(dsn = "ENTWINEBoundaries.gpkg", verbose = F, stringsAsFactors = FALSE)
+}
+```
