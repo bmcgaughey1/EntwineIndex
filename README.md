@@ -19,4 +19,9 @@ data for specific dates.
 Ultimately, this code will run every night/morning to maintain
 synchronization with the Entwine index.
 
+The direct link to the
+[index](https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg)
+is:
+`https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg`
+
 This code is very much in development so don’t expect much…
