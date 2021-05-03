@@ -10,8 +10,8 @@
 EntwineIndex is a simple code repository for code that merges the
 Entwine lidar data
 [index](https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson)
-created by Howard Butler with the WESM
-[index](http://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg)
+created by Howard Butler with the WESM index
+(<ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg>)
 for the USGS 3DEP data collection. The goal is to add lidar project
 information to the Entwine index to facilitate querying the index for
 data for specific dates.
