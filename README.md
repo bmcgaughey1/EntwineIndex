@@ -1,0 +1,25 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# EntwineIndex
+
+<!-- badges: start -->
+
+<!-- badges: end -->
+
+EntwineIndex is a simple code repository for code that merges the
+Entwine lidar data index created by Howard Butler with the WESM index
+for the USGS 3DEP data collection. The goal is to add lidar project
+information to the Entwine index to facilitate querying the index for
+data for specific dates.
+
+Ultimately, this code will run every night/morning to maintain
+synchronization with the Entwine index.
+
+This code is very much in development so don’t expect much…
+
+You’ll still need to render `README.Rmd` regularly, to keep `README.md`
+up-to-date. `devtools::build_readme()` is handy for this. You could also
+use GitHub Actions to re-render `README.Rmd` every time you push. An
+example workflow can be found here:
+<https://github.com/r-lib/actions/tree/master/examples>.
