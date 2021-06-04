@@ -61,7 +61,7 @@ UseUSGS_WESM <- TRUE
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
-  USGSPolygonFile <- "WESM_2_16_2021.gpkg"   # only for local file...link is hard-coded for rockyftp
+  USGSPolygonFile <- "WESM_6_04_2021.gpkg"   # only for local file...link is hard-coded for rockyftp
   USGSPolygonLayer <- "WESM"
 
   # USGSProjectIDField <- "WorkUnit"
