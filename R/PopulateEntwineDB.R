@@ -309,6 +309,21 @@ writeOGR(NewEntwineboundariesWebMerc,
   overwrite_layer = TRUE,
   driver = "GPKG")
 
+# write to Index folder so the updated boundaries will be uploaded to github
+writeOGR(NewEntwineboundariesWebMerc,
+         dsn = "G:/R_Stuff/EntwineIndex/Index/ENTWINEBoundaries.gpkg",
+         layer = "ENTWINEBoundaries",
+         overwrite_layer = TRUE,
+         driver = "GPKG")
+
+# write copy with date to Index folder so the boundaries will be uploaded to github
+IndexFolder <- "G:\\R_Stuff\\EntwineIndex\\Index\\"
+writeOGR(NewEntwineboundariesWebMerc,
+         dsn = paste(dirname(IndexFolder), "/", basename(IndexFolder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
+         layer = "ENTWINEBoundaries",
+         overwrite_layer = TRUE,
+         driver = "GPKG")
+
 if (showMaps) mapview(list(NewEntwineboundariesWebMerc, USGSboundariesWebMerc))
 if (showMaps) mapview(NewEntwineboundariesWebMerc)
 
