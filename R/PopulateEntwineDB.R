@@ -29,6 +29,8 @@ library(mapview)
 # } else if (tolower(type) == "entwine") {
 #   url <- "https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson"
 # }
+# as of 7/16/2021 the rockyftp server may be dead. You can access the WESM index on amazon at this link:
+# http://prd-tnm.s3.amazonaws.com/index.html?prefix=StagedProducts/Elevation/metadata/WESM.gpkg
 
 # ---------->folder and filenames
 Folder <- "G:\\R_Stuff\\PlotClipping\\"
@@ -57,11 +59,14 @@ UseLocalEntwinePolygonFile <- FALSE
 UseLocalUSGSPolygonFile <- TRUE
 UseUSGS_WESM <- TRUE
 
+# flag to display final project boundaries
+showMaps <- FALSE
+
 # -------------------------------------------------------------------------------------------------
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
-  USGSPolygonFile <- "WESM_6_04_2021.gpkg"   # only for local file...link is hard-coded for rockyftp
+  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyftp
   USGSPolygonLayer <- "WESM"
 
   # USGSProjectIDField <- "WorkUnit"
@@ -304,6 +309,6 @@ writeOGR(NewEntwineboundariesWebMerc,
   overwrite_layer = TRUE,
   driver = "GPKG")
 
-mapview(list(NewEntwineboundariesWebMerc, USGSboundariesWebMerc))
-mapview(NewEntwineboundariesWebMerc)
+if (showMaps) mapview(list(NewEntwineboundariesWebMerc, USGSboundariesWebMerc))
+if (showMaps) mapview(NewEntwineboundariesWebMerc)
 

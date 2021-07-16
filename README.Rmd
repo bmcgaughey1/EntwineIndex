@@ -41,7 +41,7 @@ library(rgdal)
 # read directly
 projects <- rgdal::readOGR(dsn = url, verbose = F, stringsAsFactors = FALSE)
 
-# download to local file, then read using utils library
+# download to local file using utils library, then read
 library(utils)
 if (!utils::download.file(url, "ENTWINEBoundaries.gpkg", mode = "wb",)) {
   projects <- rgdal::readOGR(dsn = "ENTWINEBoundaries.gpkg", verbose = F, stringsAsFactors = FALSE)
