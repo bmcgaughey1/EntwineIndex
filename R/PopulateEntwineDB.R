@@ -66,7 +66,7 @@ showMaps <- FALSE
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
-  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyftp
+  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonLayer <- "WESM"
 
   # USGSProjectIDField <- "WorkUnit"
@@ -115,8 +115,9 @@ if (UseLocalUSGSPolygonFile) {
 } else {
   # this is MUCH slower than reading a local file but it does work and will get you the latest information
   # file is 45Mb+ so you have to download the entire file to open...takes at least 15 minutes
-  File <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/NED/LPC/FullExtentSpatialMetadata/FESM_LPC_Proj.gpkg"
+  #File <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/NED/LPC/FullExtentSpatialMetadata/FESM_LPC_Proj.gpkg"
   #File <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/NED/metadata/WESM.gpkg"
+  File <- "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg"
 }
 boundaries <- readOGR(File, USGSPolygonLayer, stringsAsFactors = FALSE)
 USGSboundariesWebMerc <- spTransform(boundaries, CRS = commonProjection)
@@ -299,6 +300,7 @@ NewEntwineboundariesWebMerc@data <- final
 # count the number of entwine polygons without a match
 missing <- NewEntwineboundariesWebMerc[NewEntwineboundariesWebMerc@data$SEQ == -1, ]
 cat("Still have", length(missing), "entwine polygons with no matching USGS polygon\n")
+missing@data$name
 
 # write off new entwine polygons...includes polygons that don't have a match in the USGS collection.
 # for geopackage, you provide the full file name in dsn and the layer name in layer
