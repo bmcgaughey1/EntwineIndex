@@ -66,7 +66,7 @@ showMaps <- FALSE
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
-  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
+  USGSPolygonFile <- "WESM_9_21_2021.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonLayer <- "WESM"
 
   # USGSProjectIDField <- "WorkUnit"
@@ -277,6 +277,11 @@ missing_sf <- st_as_sf(missing)
 st_agr(missing_sf) <- "constant"
 cent <- st_centroid(missing_sf, of_largest_polygon = TRUE)
 #cent <- st_centroid(st_as_sf(missing), of_largest_polygon = TRUE)
+
+USGSboundariesWebMerc <- rgeos::gBuffer(USGSboundariesWebMerc,
+               byid = TRUE,
+               width = 0
+)
 
 # intersect centroids with USGS polygons...this throws a warning regarding proj4 strings but I can't figure
 # out what to do to make the warning go away...both datasets are in the same projection
