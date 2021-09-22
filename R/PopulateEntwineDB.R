@@ -11,6 +11,7 @@
 #
 library(rgdal)
 library(sf)
+library(geos)
 library(PROJ)
 library(raster)
 library(jsonlite)
@@ -66,6 +67,7 @@ showMaps <- FALSE
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
+#  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonFile <- "WESM_9_21_2021.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonLayer <- "WESM"
 
@@ -89,7 +91,6 @@ if (UseLocalEntwinePolygonFile) {
   # ogrInfo(File)
   # ogrListLayers(File)
 
-#  boundaries <- readOGR(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 } else {
   # get the URL by displaying the map and then using the download button
   # this is slower than reading a local file but should get you the latest information
@@ -98,13 +99,11 @@ if (UseLocalEntwinePolygonFile) {
   File <- "https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson"
 
   #  ogrInfo(File)
-
-#  boundaries <- readOGR(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 }
-boundaries <- readOGR(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
+boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 
 # reproject project boundaries to web mercator
-EntwineboundariesWebMerc <- spTransform(boundaries, CRS = commonProjection)
+EntwineboundariesWebMerc <- st_transform(boundaries, crs = commonProjection)
 
 # clean up
 rm(boundaries)
@@ -119,40 +118,65 @@ if (UseLocalUSGSPolygonFile) {
   #File <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/NED/metadata/WESM.gpkg"
   File <- "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg"
 }
-boundaries <- readOGR(File, USGSPolygonLayer, stringsAsFactors = FALSE)
-USGSboundariesWebMerc <- spTransform(boundaries, CRS = commonProjection)
+boundaries <- st_read(File, USGSPolygonLayer, stringsAsFactors = FALSE)
+
+USGSboundariesWebMerc <- st_transform(boundaries, crs = commonProjection)
 
 rm(boundaries)
 
+# We need to manipulate values in columns (replace characters, remove whitespace, etc). This is 
+# problematic if we want to select columns using [] because the return for an sf object is a
+# data frame instead of a vector. We could use $ and teh column name but we want our column
+# name to be a variable so we cn use different index files easily. The work-around is to copy 
+# the geometry to a temporary object, manipulate the columns, then re-attach the geometry.
+
+# work on USGS index
+# copy the geometry
+g <- st_geometry(USGSboundariesWebMerc)
+
+# drop the geometry
+USGSboundariesWebMerc <- st_drop_geometry(USGSboundariesWebMerc)
+
+# manipulate the columns...don't delete or rearrange rows
 # cleanup USGS project name...contain "-", " ", and leading/trailing spaces. Nothing very magical about
 # the cleanup process...just necessary to get things to match
 # replace "-" with "_"
-USGSboundariesWebMerc@data[, USGSProjectIDField] <- chartr(old = "-", new = "_", USGSboundariesWebMerc@data[, USGSProjectIDField])
-#USGSboundariesWebMerc@data$project_id <- chartr(old = "-", new = "_", USGSboundariesWebMerc@data$project_id)
+USGSboundariesWebMerc[, USGSProjectIDField] <- gsub("-", "_", USGSboundariesWebMerc[, USGSProjectIDField])
 
 # get rid of leading and trailing spaces
-USGSboundariesWebMerc@data[, USGSProjectIDField] <- trimws(USGSboundariesWebMerc@data[, USGSProjectIDField])
+USGSboundariesWebMerc[, USGSProjectIDField] <- trimws(USGSboundariesWebMerc[, USGSProjectIDField])
 
 # replace any remaining spaces with "_"
-USGSboundariesWebMerc@data[, USGSProjectIDField] <- chartr(old = " ", new = "_", USGSboundariesWebMerc@data[, USGSProjectIDField])
-
-# get rid of any features with NA in the project_id field
-USGSboundariesWebMerc <- USGSboundariesWebMerc[!is.na(USGSboundariesWebMerc@data[, USGSProjectIDField]), ]
+USGSboundariesWebMerc[, USGSProjectIDField] <- gsub(" ", "_", USGSboundariesWebMerc[, USGSProjectIDField])
 
 # add a sequential field
-USGSboundariesWebMerc@data$SEQ <- seq_len(nrow(USGSboundariesWebMerc))
+USGSboundariesWebMerc$SEQ <- seq_len(nrow(USGSboundariesWebMerc))
 
+# add a field indicating that the project_id or workunit is NA
+USGSboundariesWebMerc$drop <- is.na(USGSboundariesWebMerc[, USGSProjectIDField])
+
+# re-attach the geometry
+USGSboundariesWebMerc <- st_set_geometry(USGSboundariesWebMerc, g)
+
+# get rid of any features with NA in the project_id (or workunit) field
+# this MUST be done after re-attaching the geometry
+USGSboundariesWebMerc <- USGSboundariesWebMerc[!USGSboundariesWebMerc$drop, ]
+
+rm(g)
+
+# work on Entwine index...don't need to deal with geometry because we are using $ to
+# select columns
 # add project name to entwine collection by parsing url
-EntwineboundariesWebMerc@data$ENTpid <- basename(dirname(EntwineboundariesWebMerc@data[, "url"]))
+EntwineboundariesWebMerc$ENTpid <- basename(dirname(EntwineboundariesWebMerc$url))
 
 # do clean-up of entwine project identifiers...probably not necessary but done anyway to be safe
-EntwineboundariesWebMerc@data$ENTpid <- chartr(old = "-", new = "_", EntwineboundariesWebMerc@data$ENTpid)
+EntwineboundariesWebMerc$ENTpid <- gsub("-", "_", EntwineboundariesWebMerc$ENTpid)
 
 # get rid of leading and trailing spaces
-EntwineboundariesWebMerc@data$ENTpid <- trimws(EntwineboundariesWebMerc@data$ENTpid)
+EntwineboundariesWebMerc$ENTpid <- trimws(EntwineboundariesWebMerc$ENTpid)
 
 # replace any remaining spaces with "_"
-EntwineboundariesWebMerc@data$ENTpid <- chartr(old = " ", new = "_", EntwineboundariesWebMerc@data$ENTpid)
+EntwineboundariesWebMerc$ENTpid <- gsub(" ", "_", EntwineboundariesWebMerc$ENTpid)
 
 # now we have the sets of boundaries in web mercator projection
 # we want to match up projects in the entwine collection to their counterpart in the USGS collection so
@@ -171,7 +195,7 @@ EntwineboundariesWebMerc@data$ENTpid <- chartr(old = " ", new = "_", Entwineboun
 # and then work directly with the USGS boundaries.
 
 # additional field to add to entwine collection that points to USGS record number
-EntwineboundariesWebMerc@data$eSEQ <- -1
+EntwineboundariesWebMerc$eSEQ <- -1
 
 # additional field to indicate how match was done
 # meaning:
@@ -181,7 +205,7 @@ EntwineboundariesWebMerc@data$eSEQ <- -1
 # 3 = centroid match...centroid of Entwine polygon (largest polygon in boundary) is within USGS polygon (also largest in boundary)
 # 4 = single match...Entwine collection name is found in 1 USGS collection name
 # 5 = multiple matches...Entwine collection name is found in several USGS collection names
-EntwineboundariesWebMerc@data$MatchMethod <- 0
+EntwineboundariesWebMerc$MatchMethod <- 0
 
 # search for project name in the USGSProjectIDField field in the USGS collection for matching
 # entries in the entwine collection. In most cases, the entwine labels are longer.
@@ -206,30 +230,27 @@ matches <- 0
 multiplematches <- 0
 nomatches <- 0
 for (thePoly in 1:nrow(USGSboundariesWebMerc)) {
-#  if (!is.na(USGSboundariesWebMerc@data[thePoly, USGSProjectIDField])) {
-    result <- grep(tolower(USGSboundariesWebMerc@data[thePoly, USGSProjectIDField]), tolower(EntwineboundariesWebMerc@data[, "ENTpid"]), fixed = TRUE)
-
-    if (length(result) == 0) {
-#      cat("No match for polygon", thePoly, "USGS:", USGSboundariesWebMerc@data[thePoly, USGSProjectIDField], "\n")
-      nomatches <- nomatches + 1
-    } else if (length(result) > 1) {
-#      cat("***Multiple matches for polygon", thePoly, "USGS:", USGSboundariesWebMerc@data[thePoly, USGSProjectIDField], "Entwine:", EntwineboundariesWebMerc@data[result, "ENTpid"], "\n")
-
-      EntwineboundariesWebMerc@data[result[1], "eSEQ"] <- USGSboundariesWebMerc@data[thePoly, "SEQ"]
-
-      EntwineboundariesWebMerc@data[result[1], "MatchMethod"] <- 2
-
-      multiplematches <- multiplematches + 1
-    } else {
-#      cat("Match for polygon", thePoly, "USGS:", USGSboundariesWebMerc@data[thePoly, USGSProjectIDField], "Entwine:", EntwineboundariesWebMerc@data[result, "ENTpid"], "\n")
-
-      EntwineboundariesWebMerc@data[result, "eSEQ"] <- USGSboundariesWebMerc@data[thePoly, "SEQ"]
-
-      EntwineboundariesWebMerc@data[result, "MatchMethod"] <- 1
-
-      matches <- matches + 1
-    }
-#  }
+  if (USGSProjectIDField == "project_id") {
+    result <- grep(tolower(USGSboundariesWebMerc$project_id[thePoly]), tolower(EntwineboundariesWebMerc$ENTpid), fixed = TRUE)
+  } else if (USGSProjectIDField == "workunit") {
+    result <- grep(tolower(USGSboundariesWebMerc$workunit[thePoly]), tolower(EntwineboundariesWebMerc$ENTpid), fixed = TRUE)
+  }
+  
+  if (length(result) == 0) {
+    nomatches <- nomatches + 1
+  } else if (length(result) > 1) {
+    EntwineboundariesWebMerc$eSEQ[result[1]] <- USGSboundariesWebMerc$SEQ[thePoly]
+      
+    EntwineboundariesWebMerc$MatchMethod[result[1]] <- 2
+      
+    multiplematches <- multiplematches + 1
+  } else {
+    EntwineboundariesWebMerc$eSEQ[result] <- USGSboundariesWebMerc$SEQ[thePoly]
+      
+    EntwineboundariesWebMerc$MatchMethod[result] <- 1
+      
+    matches <- matches + 1
+  }
 }
 
 cat("USGS collection name is contained in Entwine collection name:\n",
@@ -265,7 +286,7 @@ cat("USGS collection name is contained in Entwine collection name:\n",
 #
 # compute centroids for entwine polygons...use of_largest_polygon = TRUE to give centroid of the
 # largest polygon in multi-polygon features
-missing <- EntwineboundariesWebMerc[EntwineboundariesWebMerc@data$eSEQ == -1, ]
+missing <- EntwineboundariesWebMerc[EntwineboundariesWebMerc$eSEQ == -1, ]
 
 cat(length(missing), "Entwine polygons with no match\n")
 
@@ -273,63 +294,55 @@ cat(length(missing), "Entwine polygons with no match\n")
 # can't figure out why. Function seems to work fine and returns good points.
 # the conversion to sf object and use of st_agr() is to prevent the warning. Previous
 # code did the conversion in the call to st_intersect (commented line)
-missing_sf <- st_as_sf(missing)
-st_agr(missing_sf) <- "constant"
-cent <- st_centroid(missing_sf, of_largest_polygon = TRUE)
+st_agr(missing) <- "constant"
+cent <- st_centroid(missing, of_largest_polygon = TRUE)
 #cent <- st_centroid(st_as_sf(missing), of_largest_polygon = TRUE)
-
-USGSboundariesWebMerc <- rgeos::gBuffer(USGSboundariesWebMerc,
-               byid = TRUE,
-               width = 0
-)
 
 # intersect centroids with USGS polygons...this throws a warning regarding proj4 strings but I can't figure
 # out what to do to make the warning go away...both datasets are in the same projection
 # The only difference is that the proj4 string for cent contains "+wktext"
-t <- raster::intersect(as(cent, "Spatial"), USGSboundariesWebMerc)
+#t <- raster::intersect(as(cent, "Spatial"), USGSboundariesWebMerc)
+t <- st_intersection(cent, USGSboundariesWebMerc)
 
 cat(length(t), "intersections with entwine polygon centroids\n")
 
 # set the USGS record in the entwine data...entwine id starts at 0
 NewEntwineboundariesWebMerc <- EntwineboundariesWebMerc
-NewEntwineboundariesWebMerc@data[t@data$id + 1, "eSEQ"] <- t@data$SEQ
+NewEntwineboundariesWebMerc$eSEQ[t$id + 1] <- t$SEQ
 
-NewEntwineboundariesWebMerc@data[t@data$id + 1, "MatchMethod"] <- 3
+NewEntwineboundariesWebMerc$MatchMethod[t$id + 1] <- 3
 
-names(NewEntwineboundariesWebMerc@data)[names(NewEntwineboundariesWebMerc@data) == "eSEQ"] <- "SEQ"
+names(NewEntwineboundariesWebMerc)[names(NewEntwineboundariesWebMerc) == "eSEQ"] <- "SEQ"
 
 # merge columns from USGS polygons into entwine polygons
-final <- NewEntwineboundariesWebMerc@data %>% left_join(USGSboundariesWebMerc@data, by = "SEQ")
-NewEntwineboundariesWebMerc@data <- final
+final <- NewEntwineboundariesWebMerc %>% left_join(st_drop_geometry(USGSboundariesWebMerc), by = "SEQ")
+NewEntwineboundariesWebMerc <- final
 
 # count the number of entwine polygons without a match
-missing <- NewEntwineboundariesWebMerc[NewEntwineboundariesWebMerc@data$SEQ == -1, ]
-cat("Still have", length(missing), "entwine polygons with no matching USGS polygon\n")
-missing@data$name
+missing <- NewEntwineboundariesWebMerc[NewEntwineboundariesWebMerc$SEQ == -1, ]
+cat("Still have", nrow(missing), "entwine polygons with no matching USGS polygon\n")
+missing$name
 
 # write off new entwine polygons...includes polygons that don't have a match in the USGS collection.
 # for geopackage, you provide the full file name in dsn and the layer name in layer
 # for shapefiles, you provide the folder name without the trailing / in dsn and the file name without .shp in the layer
-writeOGR(NewEntwineboundariesWebMerc,
-  dsn = paste(dirname(Folder), "/", basename(Folder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
-  layer = "ENTWINEBoundaries",
-  overwrite_layer = TRUE,
-  driver = "GPKG")
+write_sf(NewEntwineboundariesWebMerc,
+  paste(dirname(Folder), "/", basename(Folder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
+  layer = "ENTWINEBoundaries"
+)
 
 # write to Index folder so the updated boundaries will be uploaded to github
-writeOGR(NewEntwineboundariesWebMerc,
-         dsn = "G:/R_Stuff/EntwineIndex/Index/ENTWINEBoundaries.gpkg",
-         layer = "ENTWINEBoundaries",
-         overwrite_layer = TRUE,
-         driver = "GPKG")
+write_sf(NewEntwineboundariesWebMerc,
+         "G:/R_Stuff/EntwineIndex/Index/ENTWINEBoundaries.gpkg",
+         layer = "ENTWINEBoundaries"
+)
 
 # write copy with date to Index folder so the boundaries will be uploaded to github
 IndexFolder <- "G:\\R_Stuff\\EntwineIndex\\Index\\"
-writeOGR(NewEntwineboundariesWebMerc,
-         dsn = paste(dirname(IndexFolder), "/", basename(IndexFolder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
-         layer = "ENTWINEBoundaries",
-         overwrite_layer = TRUE,
-         driver = "GPKG")
+write_sf(NewEntwineboundariesWebMerc,
+         paste(dirname(IndexFolder), "/", basename(IndexFolder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
+         layer = "ENTWINEBoundaries"
+)
 
 if (showMaps) mapview(list(NewEntwineboundariesWebMerc, USGSboundariesWebMerc))
 if (showMaps) mapview(NewEntwineboundariesWebMerc)
