@@ -60,7 +60,7 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
           restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
 
-      - name: Generate data
+      - name: Update the index
         run: |
           source("R/PopulateEntwineDB.R")
         shell: Rscript {0} 
