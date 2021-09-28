@@ -12,42 +12,41 @@ EntwineIndex is a simple code repository for code that merges the
 Entwine lidar data
 [index](https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson)
 created by Howard Butler
-([usgs-lidar](https://github.com/hobu/usgs-lidar)) with the WESM index
-(<https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg>)
+([usgs-lidar](https://github.com/hobu/usgs-lidar)) with the [WESM
+index](https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg)
 for the USGS 3DEP data collection. The goal is to add lidar project
 information to the Entwine index to facilitate querying the index for
-data for specific dates.
+data covering specific locations and dates.
 
 This code is run daily to maintain synchronization with the Entwine
 index.
 
-The direct link to the
-[index](https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg)
-is:
+A direct link to the index is:
 `https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg`
 
-When using the index, it may be best to grab a copy of the index and
-store it locally. However, you can read the index directly from GitHub.
-It is fairly small so the download only takes a few seconds.
+When using the index, it may be best to grab a copy of the
+[index](https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg)
+and store it locally. The index is fairly small so the download only
+takes a few seconds. However, you can read the index directly from
+GitHub using *st\_read* from the *sf* package s shown in the example
+below.
 
 The index is used with my
 [USGSlidar](https://github.com/bmcgaughey1/USGSlidar) R package to help
 discover lidar data for specific locations and dates. The index can be
-accessed in the package using fetchUSGSProjectIndex(type =
-“entwineplus”).
+accessed in the package using *fetchUSGSProjectIndex(type =
+“entwineplus”)*.
 
 ``` r
 url <- "https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg"
 
-# use rgdal to read the geopackage
-library(sf)
-
-# read directly
-projects <- sf::st_read(url, stringsAsFactors = FALSE)
-
-# download to local file using utils library, then read
+# download to local file using utils library
 library(utils)
 if (!utils::download.file(url, "ENTWINEBoundaries.gpkg", mode = "wb",)) {
   projects <- sf::st_read("ENTWINEBoundaries.gpkg", stringsAsFactors = FALSE)
 }
+
+# use the sf package to read the index directly from GitHub
+library(sf)
+projects <- sf::st_read(url, stringsAsFactors = FALSE)
 ```
