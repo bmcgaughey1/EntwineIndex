@@ -2,21 +2,20 @@
 #
 # Definitions:
 #   Entwine collection: The collection of data that has been organized using entwine. Resides in amazon S3 public bucket
-#   USGS collection: Entire USGS LPC collection that resides on the rockyftp server
+#   USGS collection: Entire USGS LPC collection that resides on the rockyweb server
 #
 # Both data collections are USGS-collected products. However, the entwine collection doesn't contain all of the data found
-# in the USGS collection. In addition, you can't pull data directly from the rockyftp server. Instead you have to download
+# in the USGS collection. In addition, you can't pull data directly from the rockyweb server. Instead you have to download
 # tiles covering the target location and then pull data from the local copies of the tiles. The PDAL pipeline will be
 # similar for both collections (readers will change).
 #
 #library(rgdal)
 #library(PROJ)
 #library(raster)
+#library(geos)
+#library(jsonlite)
 library(sf)
-library(geos)
-library(jsonlite)
 library(dplyr)
-library(mapview)
 
 # -------------------------------------------------------------------------------------------------
 #                                         Configuration...
@@ -34,7 +33,9 @@ library(mapview)
 # http://prd-tnm.s3.amazonaws.com/index.html?prefix=StagedProducts/Elevation/metadata/WESM.gpkg
 
 # ---------->folder and filenames
-Folder <- "G:\\R_Stuff\\PlotClipping\\"
+# this is only needed when running from local instance of rstudio
+setwd("G:/R_Stuff/EntwineIndex")
+Folder <- "./"
 EntwinePolygonFile <- "resources.geojson"   # only for local file...https link is hard-coded for Howard's github location
 EntwinePolygonLayer <- "resources"
 USGSPolygonFile <- "FESM_LPC_Proj.gpkg"   # only for local file...https link is hard-coded for rockyftp
@@ -57,18 +58,21 @@ USGSDataURLField <- "url"
 
 # ---------->flags to control program flow
 UseLocalEntwinePolygonFile <- FALSE
-UseLocalUSGSPolygonFile <- TRUE
+#UseLocalUSGSPolygonFile <- TRUE
+UseLocalUSGSPolygonFile <- FALSE
 UseUSGS_WESM <- TRUE
 
 # flag to display final project boundaries
 showMaps <- FALSE
+if (showMaps)
+  library(mapview)
 
 # -------------------------------------------------------------------------------------------------
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
 #  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
-  USGSPolygonFile <- "WESM_9_28_2021.gpkg"   # only for local file...link is hard-coded for rockyweb
+  USGSPolygonFile <- "WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonLayer <- "WESM"
 
   # USGSProjectIDField <- "WorkUnit"
@@ -325,22 +329,22 @@ missing$name
 
 # write off new entwine polygons...includes polygons that don't have a match in the USGS collection.
 write_sf(NewEntwineboundariesWebMerc,
-  paste(dirname(Folder), "/", basename(Folder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
+  paste0(Folder, "Index/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg"),
   layer = "ENTWINEBoundaries"
 )
 
 # write to Index folder so the updated boundaries will be uploaded to github
 write_sf(NewEntwineboundariesWebMerc,
-         "G:/R_Stuff/EntwineIndex/Index/ENTWINEBoundaries.gpkg",
+         paste0(Folder, "Index/ENTWINEBoundaries.gpkg"),
          layer = "ENTWINEBoundaries"
 )
 
-# write copy with date to Index folder so the boundaries will be uploaded to github
-IndexFolder <- "G:\\R_Stuff\\EntwineIndex\\Index\\"
-write_sf(NewEntwineboundariesWebMerc,
-         paste(dirname(IndexFolder), "/", basename(IndexFolder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
-         layer = "ENTWINEBoundaries"
-)
+# # write copy with date to Index folder so the boundaries will be uploaded to github
+# IndexFolder <- "G:\\R_Stuff\\EntwineIndex\\Index\\"
+# write_sf(NewEntwineboundariesWebMerc,
+#          paste(dirname(IndexFolder), "/", basename(IndexFolder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
+#          layer = "ENTWINEBoundaries"
+# )
 
 if (showMaps) mapview(list(NewEntwineboundariesWebMerc, USGSboundariesWebMerc))
 if (showMaps) mapview(NewEntwineboundariesWebMerc)
