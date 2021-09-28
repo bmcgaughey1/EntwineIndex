@@ -11,7 +11,7 @@ EntwineIndex is a simple code repository for code that merges the
 Entwine lidar data
 [index](https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson)
 created by Howard Butler with the WESM index
-(<ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg>)
+(<https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg>)
 for the USGS 3DEP data collection. The goal is to add lidar project
 information to the Entwine index to facilitate querying the index for
 data for specific dates.
@@ -24,22 +24,22 @@ The direct link to the
 is:
 `https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg`
 
-When using the index, it is probably best to grab a copy of the index
-and store it locally. However, you can read the index directly from
-GitHub.
+When using the index, it may be best to grab a copy of the index and
+store it locally. However, you can read the index directly from GitHub.
+It is fairly small so the download only takes a few seconds.
 
 ``` r
 url <- "https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg"
 
 # use rgdal to read the geopackage
-library(rgdal)
+library(sf)
 
 # read directly
-projects <- rgdal::readOGR(dsn = url, verbose = F, stringsAsFactors = FALSE)
+projects <- sf::st_read(url, stringsAsFactors = FALSE)
 
 # download to local file using utils library, then read
 library(utils)
 if (!utils::download.file(url, "ENTWINEBoundaries.gpkg", mode = "wb",)) {
-  projects <- rgdal::readOGR(dsn = "ENTWINEBoundaries.gpkg", verbose = F, stringsAsFactors = FALSE)
+  projects <- sf::st_read("ENTWINEBoundaries.gpkg", stringsAsFactors = FALSE)
 }
 ```

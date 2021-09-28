@@ -9,11 +9,11 @@
 # tiles covering the target location and then pull data from the local copies of the tiles. The PDAL pipeline will be
 # similar for both collections (readers will change).
 #
-library(rgdal)
+#library(rgdal)
+#library(PROJ)
+#library(raster)
 library(sf)
 library(geos)
-library(PROJ)
-library(raster)
 library(jsonlite)
 library(dplyr)
 library(mapview)
@@ -44,7 +44,7 @@ USGSPolygonLayer <- "FESM_LPC_PROJ"
 # USGSPolygonLayer <- "main.WESM"
 
 # ---------->parameters
-commonProjection <- CRS(SRS_string="EPSG:3857")
+commonProjection <- 3857
 #commonProjection <- proj_create("EPSG:3857", format = 1)
 
 # *****Field names are different depending on the source of the USGS polygons
@@ -68,7 +68,7 @@ showMaps <- FALSE
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
 #  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
-  USGSPolygonFile <- "WESM_9_21_2021.gpkg"   # only for local file...link is hard-coded for rockyweb
+  USGSPolygonFile <- "WESM_9_28_2021.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonLayer <- "WESM"
 
   # USGSProjectIDField <- "WorkUnit"
@@ -290,10 +290,9 @@ missing <- EntwineboundariesWebMerc[EntwineboundariesWebMerc$eSEQ == -1, ]
 
 cat(length(missing), "Entwine polygons with no match\n")
 
-# This throws a warning regarding attributes are constant over geometries of x but I
-# can't figure out why. Function seems to work fine and returns good points.
-# the conversion to sf object and use of st_agr() is to prevent the warning. Previous
-# code did the conversion in the call to st_intersect (commented line)
+# This used to throw a warning regarding attributes are constant 
+# over geometries of x but this is OK.
+# the use of st_agr() is to prevent the warning.
 st_agr(missing) <- "constant"
 cent <- st_centroid(missing, of_largest_polygon = TRUE)
 #cent <- st_centroid(st_as_sf(missing), of_largest_polygon = TRUE)
@@ -302,6 +301,7 @@ cent <- st_centroid(missing, of_largest_polygon = TRUE)
 # out what to do to make the warning go away...both datasets are in the same projection
 # The only difference is that the proj4 string for cent contains "+wktext"
 #t <- raster::intersect(as(cent, "Spatial"), USGSboundariesWebMerc)
+st_agr(USGSboundariesWebMerc) <- "constant"
 t <- st_intersection(cent, USGSboundariesWebMerc)
 
 cat(length(t), "intersections with entwine polygon centroids\n")
@@ -324,8 +324,6 @@ cat("Still have", nrow(missing), "entwine polygons with no matching USGS polygon
 missing$name
 
 # write off new entwine polygons...includes polygons that don't have a match in the USGS collection.
-# for geopackage, you provide the full file name in dsn and the layer name in layer
-# for shapefiles, you provide the folder name without the trailing / in dsn and the file name without .shp in the layer
 write_sf(NewEntwineboundariesWebMerc,
   paste(dirname(Folder), "/", basename(Folder), "/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg", sep = ""),
   layer = "ENTWINEBoundaries"
