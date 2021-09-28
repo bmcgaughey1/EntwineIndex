@@ -34,7 +34,8 @@ library(dplyr)
 
 # ---------->folder and filenames
 # this is only needed when running from local instance of rstudio
-#setwd("G:/R_Stuff/EntwineIndex")
+tryCatch(setwd("G:/R_Stuff/EntwineIndex"), error = function(e) NULL)
+
 Folder <- "./"
 EntwinePolygonFile <- "resources.geojson"   # only for local file...https link is hard-coded for Howard's github location
 EntwinePolygonLayer <- "resources"
