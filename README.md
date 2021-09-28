@@ -5,8 +5,7 @@
 
 <!-- badges: start -->
 
-![Update Index
-Status](https://github.com/bmcgaughey1/EntwineIndex/actions/workflows/main.yml/badge.svg)
+[![UpdateEntwinePlusIndex](https://github.com/bmcgaughey1/EntwineIndex/actions/workflows/main.yml/badge.svg)](https://github.com/bmcgaughey1/EntwineIndex/actions/workflows/main.yml)
 <!-- badges: end -->
 
 EntwineIndex is a simple code repository for code that merges the
