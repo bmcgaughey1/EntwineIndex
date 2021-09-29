@@ -4,9 +4,9 @@ name: Update EntwinePlus Index
 
 # Controls when the workflow will run
 on:
-  # run at 3:00am every day
+  # run at 8:00pm every day
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "13 20 * * *"
 
   # Triggers the workflow on push or pull request events but only for the main branch
 #  push:
