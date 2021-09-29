@@ -19,20 +19,20 @@ knitr::opts_chunk$set(
 
 EntwineIndex is a simple code repository for code that merges the Entwine lidar data
 [index](https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson) created
-by Howard Butler ([usgs-lidar](https://github.com/hobu/usgs-lidar)) with the 
+by Howard Butler (GitHub repository: [usgs-lidar](https://github.com/hobu/usgs-lidar)) with the 
 [WESM index](https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg) for the USGS
 3DEP data collection. The goal is to add lidar project
 information to the Entwine index to facilitate querying the index for data covering specific locations and dates.
 
-This code is run daily to maintain synchronization with the Entwine index.
+This code is run daily to maintain synchronization with the Entwine and WESM index files.
 
-A direct link to the index is:
+URL for the index is:
 `https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg`
 
-When using the index, it may be best to grab a copy of the 
+You can grab a copy of the 
 [index](https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg) 
-and store it locally. The index is fairly small so the download only takes a few seconds. However, you 
-can read the index directly from GitHub using *st_read* from the *sf* package s shown in the example below.
+and store it locally. However, the index is fairly small so direct reads take only a few seconds. You 
+can read the index directly from GitHub using *st_read* from the *sf* package as shown in the example below.
 
 The index is used with my [USGSlidar](https://github.com/bmcgaughey1/USGSlidar) R package to help discover
 lidar data for specific locations and dates. The index can be accessed in the package using 

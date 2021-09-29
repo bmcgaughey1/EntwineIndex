@@ -1,19 +1,14 @@
-# work on USGS data to get details for entwine collection
+#
+# PopulateEntwineDB
 #
 # Definitions:
 #   Entwine collection: The collection of data that has been organized using entwine. Resides in amazon S3 public bucket
 #   USGS collection: Entire USGS LPC collection that resides on the rockyweb server
 #
 # Both data collections are USGS-collected products. However, the entwine collection doesn't contain all of the data found
-# in the USGS collection. In addition, you can't pull data directly from the rockyweb server. Instead you have to download
-# tiles covering the target location and then pull data from the local copies of the tiles. The PDAL pipeline will be
-# similar for both collections (readers will change).
+# in the USGS collection. In addition, you can't pull data directly from the rockyweb server for specific areas of interest.
+# Instead you have to download tiles covering the target location and then pull data from the local copies of the tiles. 
 #
-#library(rgdal)
-#library(PROJ)
-#library(raster)
-#library(geos)
-#library(jsonlite)
 library(sf)
 library(dplyr)
 
@@ -21,89 +16,56 @@ library(dplyr)
 #                                         Configuration...
 # -------------------------------------------------------------------------------------------------
 
-# links to various project index files
-# if (tolower(type) == "fesm") {
-#   url <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/FullExtentSpatialMetadata/FESM_LPC_Proj.gpkg"
-# } else if (tolower(type) == "wesm") {
-#   url <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg"
-# } else if (tolower(type) == "entwine") {
-#   url <- "https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson"
-# }
-# as of 7/16/2021 the rockyftp server may be dead. You can access the WESM index on amazon at this link:
-# http://prd-tnm.s3.amazonaws.com/index.html?prefix=StagedProducts/Elevation/metadata/WESM.gpkg
-
 # ---------->folder and filenames
 # this is only needed when running from local instance of rstudio
+# it will fail when run on GitHub so we catch the error
 tryCatch(setwd("G:/R_Stuff/EntwineIndex"), error = function(e) NULL)
 
 Folder <- "./"
 EntwinePolygonFile <- "resources.geojson"   # only for local file...https link is hard-coded for Howard's github location
 EntwinePolygonLayer <- "resources"
-USGSPolygonFile <- "FESM_LPC_Proj.gpkg"   # only for local file...https link is hard-coded for rockyftp
-USGSPolygonLayer <- "FESM_LPC_PROJ"
-# this is the file that is now being used (after 5/7/2020). As of 6/11/2020 it is not fully populated
-# USGSPolygonFile <- "WESM.gpkg"   # only for local file...link is hard-coded for rockyftp
-# USGSPolygonLayer <- "main.WESM"
 
 # ---------->parameters
 commonProjection <- 3857
-#commonProjection <- proj_create("EPSG:3857", format = 1)
-
-# *****Field names are different depending on the source of the USGS polygons
-# FESM_LPC_Proj.gpkg
-USGSProjectIDField <- "project_id"
-USGSDataURLField <- "url"
-# WESM.gpkg
-# USGSProjectIDField <- "WorkUnit"
-# USGSDataURLField <- "LPC_Link"
 
 # ---------->flags to control program flow
 UseLocalEntwinePolygonFile <- FALSE
-#UseLocalUSGSPolygonFile <- TRUE
-UseLocalUSGSPolygonFile <- FALSE
+#UseLocalUSGSPolygonFile <- TRUE      # for local runs
+UseLocalUSGSPolygonFile <- FALSE     # for GitHub runs
 UseUSGS_WESM <- TRUE
 
 # flag to display final project boundaries
+# we always want this off for GitHub runs
 showMaps <- FALSE
 if (showMaps)
   library(mapview)
+
+# flag to save an extra copy of the enhanced index identified by date...not really needed and will add to amount of 
+# storage on GitHub
+saveDatedIndex <- FALSE
 
 # -------------------------------------------------------------------------------------------------
 #                                   Start of important bits...
 # -------------------------------------------------------------------------------------------------
 if (UseUSGS_WESM) {
-#  USGSPolygonFile <- "7_16_2021_WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonFile <- "WESM.gpkg"   # only for local file...link is hard-coded for rockyweb
   USGSPolygonLayer <- "WESM"
 
-  # USGSProjectIDField <- "WorkUnit"
-  # USGSDataURLField <- "LPC_Link"
   USGSProjectIDField <- "workunit"
   USGSDataURLField <- "lpc_link"
+} else {
+  USGSPolygonFile <- "FESM_LPC_Proj.gpkg"   # only for local file...https link is hard-coded for rockyftp
+  USGSPolygonLayer <- "FESM_LPC_PROJ"
+  
+  USGSProjectIDField <- "project_id"
+  USGSDataURLField <- "url"
 }
 
-# verify that we have the geoJSON reader...not needed
-#"GeoJSON" %in% ogrDrivers()$name
-
 # read USGS-entwine boundaries...in LatLong coords WGS84.
-# In theory, you should be able to grab this file directly from GitHub.
-# However, R starts to get really sluggish after I use getURL() so it may
-# be better to download the resources.geojson file and then read the local copy.
 if (UseLocalEntwinePolygonFile) {
-  File <- paste(Folder, EntwinePolygonFile, sep = "")
-
-  # look at the file properites...not necessary but may be useful
-  # ogrInfo(File)
-  # ogrListLayers(File)
-
+  File <- paste0(Folder, EntwinePolygonFile)
 } else {
-  # get the URL by displaying the map and then using the download button
-  # this is slower than reading a local file but should get you the latest information
-  # site URL: https://github.com/hobu/usgs-lidar/tree/master/boundaries
-#  fileURL <- c("https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson")
   File <- "https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson"
-
-  #  ogrInfo(File)
 }
 boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 
@@ -117,10 +79,6 @@ if (UseLocalUSGSPolygonFile) {
   # read geopackage for entire USGS collection
   File <- paste(Folder, USGSPolygonFile, sep = "")
 } else {
-  # this is MUCH slower than reading a local file but it does work and will get you the latest information
-  # file is 45Mb+ so you have to download the entire file to open...takes at least 15 minutes
-  #File <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/NED/LPC/FullExtentSpatialMetadata/FESM_LPC_Proj.gpkg"
-  #File <- "ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/NED/metadata/WESM.gpkg"
   File <- "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg"
 }
 boundaries <- st_read(File, USGSPolygonLayer, stringsAsFactors = FALSE)
@@ -131,8 +89,8 @@ rm(boundaries)
 
 # We need to manipulate values in columns (replace characters, remove whitespace, etc). This is 
 # problematic if we want to select columns using [] because the return for an sf object is a
-# data frame instead of a vector. We could use $ and teh column name but we want our column
-# name to be a variable so we cn use different index files easily. The work-around is to copy 
+# data frame instead of a vector. We could use $ and the column name but we want our column
+# name to be a variable so we can use different index files easily. The work-around is to copy 
 # the geometry to a temporary object, manipulate the columns, then re-attach the geometry.
 
 # work on USGS index
@@ -207,7 +165,7 @@ EntwineboundariesWebMerc$eSEQ <- -1
 # 0 = no match
 # 1 = single match...USGS collection name is found in 1 Entwine collection name
 # 2 = multiple matches...USGS collection name is found in several Entwine collection names
-# 3 = centroid match...centroid of Entwine polygon (largest polygon in boundary) is within USGS polygon (also largest in boundary)
+# 3 = centroid match...centroid of Entwine polygon (largest polygon in boundary) is within USGS polygon (also largest polygon in boundary)
 # 4 = single match...Entwine collection name is found in 1 USGS collection name
 # 5 = multiple matches...Entwine collection name is found in several USGS collection names
 EntwineboundariesWebMerc$MatchMethod <- 0
@@ -258,10 +216,12 @@ for (thePoly in 1:nrow(USGSboundariesWebMerc)) {
   }
 }
 
-cat("USGS collection name is contained in Entwine collection name:\n",
-  "  No matches ", nomatches, "\n",
-  "  Multiple matches ", multiplematches, "\n",
-  "  Single matches ", matches, "\n"
+cat("Using", nrow(USGSboundariesWebMerc), "items in the USGS collection and",
+    nrow(EntwineboundariesWebMerc), "items in the Entwine collection:\n",
+    "  USGS", USGSProjectIDField, "found in Entwine ENTpid:\n",
+    "    No matches:", nomatches, "\n",
+    "    Multiple matches:", multiplematches, "\n",
+    "    Single matches:", matches, "\n"
 )
 
 # The above approach gets us a match for most projects in the entwine collection. There
@@ -293,23 +253,21 @@ cat("USGS collection name is contained in Entwine collection name:\n",
 # largest polygon in multi-polygon features
 missing <- EntwineboundariesWebMerc[EntwineboundariesWebMerc$eSEQ == -1, ]
 
-cat(length(missing), "Entwine polygons with no match\n")
+cat("After project identifier matching, there are", nrow(missing), "Entwine polygons with no match\n")
 
 # This used to throw a warning regarding attributes are constant 
-# over geometries of x but this is OK.
-# the use of st_agr() is to prevent the warning.
+# over geometries of x...the use of st_agr() is to prevent the warning.
 st_agr(missing) <- "constant"
 cent <- st_centroid(missing, of_largest_polygon = TRUE)
-#cent <- st_centroid(st_as_sf(missing), of_largest_polygon = TRUE)
 
-# intersect centroids with USGS polygons...this throws a warning regarding proj4 strings but I can't figure
-# out what to do to make the warning go away...both datasets are in the same projection
-# The only difference is that the proj4 string for cent contains "+wktext"
-#t <- raster::intersect(as(cent, "Spatial"), USGSboundariesWebMerc)
+# intersect centroids with USGS polygons...this may throw a warning regarding proj4 strings but I can't figure
+# out what to do to make the warning go away...both datasets are in the same projection.
+# the only difference is that the proj4 string for cent contains "+wktext"
+# this may be related to differences in PROJ and sf package versions
 st_agr(USGSboundariesWebMerc) <- "constant"
 t <- st_intersection(cent, USGSboundariesWebMerc)
 
-cat(length(t), "intersections with entwine polygon centroids\n")
+cat("Found", nrow(t), "Entwine polygon centroids contained in USGS project polygons\n")
 
 # set the USGS record in the entwine data...entwine id starts at 0
 NewEntwineboundariesWebMerc <- EntwineboundariesWebMerc
@@ -325,14 +283,18 @@ NewEntwineboundariesWebMerc <- final
 
 # count the number of entwine polygons without a match
 missing <- NewEntwineboundariesWebMerc[NewEntwineboundariesWebMerc$SEQ == -1, ]
-cat("Still have", nrow(missing), "entwine polygons with no matching USGS polygon\n")
-missing$name
+if (nrow(missing)) {
+  message("After all matching, there are still ", nrow(missing), " entwine polygons with no matching USGS polygon:")
+  for (name in missing$name) message(name)
+}
 
 # write off new entwine polygons...includes polygons that don't have a match in the USGS collection.
-write_sf(NewEntwineboundariesWebMerc,
-  paste0(Folder, "Index/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg"),
-  layer = "ENTWINEBoundaries"
-)
+if (saveDatedIndex) {
+  write_sf(NewEntwineboundariesWebMerc,
+    paste0(Folder, "Index/", format(Sys.Date(), format = "%Y_%m_%d"), "_", "ENTWINEBoundaries.gpkg"),
+    layer = "ENTWINEBoundaries"
+  )
+}
 
 # write to Index folder so the updated boundaries will be uploaded to github
 write_sf(NewEntwineboundariesWebMerc,
