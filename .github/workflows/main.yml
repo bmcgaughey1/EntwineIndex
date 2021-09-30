@@ -60,14 +60,6 @@ jobs:
           writeLines(sprintf("R-%i.%i", getRversion()$major, getRversion()$minor), ".github/R-version")
         shell: Rscript {0}
 
-      - name: Cache R packages
-        if: steps.package-cache.outputs.cache-hit != 'true'
-        id: package-cache-update
-        uses: actions/cache@v2
-        with:
-          path: ${{ env.R_LIBS_USER }}
-          key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('R/PopulateEntwineDB.R') }}
-
       - name: Update the index
         run: |
           source("R/PopulateEntwineDB.R")
