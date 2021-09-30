@@ -45,6 +45,13 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@master
 
+      - name: Cache R packages
+        id: package-cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}
+
       - name: Load packages
         if: steps.package-cache.outputs.cache-hit != 'true'
         run: |
@@ -54,7 +61,8 @@ jobs:
         shell: Rscript {0}
 
       - name: Cache R packages
-        id: package-cache
+        if: steps.package-cache.outputs.cache-hit != 'true'
+        id: package-cache-update
         uses: actions/cache@v2
         with:
           path: ${{ env.R_LIBS_USER }}
