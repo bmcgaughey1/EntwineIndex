@@ -46,7 +46,7 @@ jobs:
       - uses: r-lib/actions/setup-pandoc@master
 
       - name: Load packages
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.package-cache.outputs.cache-hit != 'true'
         run: |
           install.packages('sf')
           install.packages('dplyr')
@@ -54,6 +54,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Cache R packages
+        id: package-cache
         uses: actions/cache@v2
         with:
           path: ${{ env.R_LIBS_USER }}
