@@ -8,7 +8,7 @@
 # Both data collections are USGS-collected products. However, the entwine collection doesn't contain all of the data found
 # in the USGS collection. In addition, you can't pull data directly from the rockyweb server for specific areas of interest.
 # Instead you have to download tiles covering the target location and then pull data from the local copies of the tiles. 
-#
+#  
 library(sf)
 library(dplyr)
 
