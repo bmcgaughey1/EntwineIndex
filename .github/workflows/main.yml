@@ -4,9 +4,9 @@ name: Update EntwinePlus Index
 
 # Controls when the workflow will run
 on:
-  # run at 8:00pm every day
+  # run at 8:00pm every 3rd day...will reset on first of month
   schedule:
-    - cron: "13 20 * * *"
+    - cron: "13 20 */3 * *"
 
   # Triggers the workflow on push or pull request events but only for the main branch
 #  push:
@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: windows-latest,   r: 'release'}
+          - {os: ubuntu-latest,   r: 'release'}
 
     env:
       R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
