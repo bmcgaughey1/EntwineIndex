@@ -81,7 +81,7 @@ if (UseLocalUSGSPolygonFile) {
 } else {
   File <- "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.gpkg"
 }
-system.time({boundaries <- st_read(File, USGSPolygonLayer, stringsAsFactors = FALSE)})
+boundaries <- st_read(File, USGSPolygonLayer, stringsAsFactors = FALSE)
 
 USGSboundariesWebMerc <- st_transform(boundaries, crs = commonProjection)
 
