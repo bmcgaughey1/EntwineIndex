@@ -2,12 +2,14 @@
 # PopulateEntwineDB
 #
 # Definitions:
-#   Entwine collection: The collection of data that has been organized using entwine. Resides in amazon S3 public bucket
+#   Entwine collection: The collection of data that has been organized using entwine. 
+#   Resides in amazon S3 public bucket
 #   USGS collection: Entire USGS LPC collection that resides on the rockyweb server
 #
-# Both data collections are USGS-collected products. However, the entwine collection doesn't contain all of the data found
-# in the USGS collection. In addition, you can't pull data directly from the rockyweb server for specific areas of interest.
-# Instead you have to download tiles covering the target location and then pull data from the local copies of the tiles. 
+# Both data collections are USGS-collected products. However, the entwine collection doesn't contain
+# all of the data found in the USGS collection. In addition, you can't pull data directly from the
+# rockyweb server for specific areas of interest. Instead you have to download tiles covering the
+# target location and then pull data from the local copies of the tiles.
 #  
 library(sf)
 library(dplyr)
@@ -68,6 +70,15 @@ if (UseLocalEntwinePolygonFile) {
   File <- "https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson"
 }
 boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
+
+# drop "FullState" projects. These are aggregations of other projects so, esentially, duplicate
+# data. I think there is a corresponding "project" for the IA_FullState area in the USGS index
+# but the project details are not consistent with other areas. For KY and MN, the centroid matching
+# logic assigns attributes from a single project to the "FullState" area but these attributes are not
+# correct over the entire area
+boundaries <- subset(boundaries, name != "KY_FullState")
+boundaries <- subset(boundaries, name != "IA_FullState")
+boundaries <- subset(boundaries, name != "MN_FullState")
 
 # reproject project boundaries to web mercator
 EntwineboundariesWebMerc <- st_transform(boundaries, crs = commonProjection)
