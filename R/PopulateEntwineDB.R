@@ -76,9 +76,9 @@ boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 # but the project details are not consistent with other areas. For KY and MN, the centroid matching
 # logic assigns attributes from a single project to the "FullState" area but these attributes are not
 # correct over the entire area
-boundaries <- subset(boundaries, name != "KY_FullState")
-boundaries <- subset(boundaries, name != "IA_FullState")
-boundaries <- subset(boundaries, name != "MN_FullState")
+#boundaries <- subset(boundaries, name != "KY_FullState")
+#boundaries <- subset(boundaries, name != "IA_FullState")
+#boundaries <- subset(boundaries, name != "MN_FullState")
 
 # reproject project boundaries to web mercator
 EntwineboundariesWebMerc <- st_transform(boundaries, crs = commonProjection)
