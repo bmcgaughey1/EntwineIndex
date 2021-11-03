@@ -11,6 +11,24 @@
 # rockyweb server for specific areas of interest. Instead you have to download tiles covering the
 # target location and then pull data from the local copies of the tiles.
 #  
+# changes:
+#   11/2/2021: Fixed the way I was handling multiple matches for the USGS identifier. Previously,
+#   only the first match was being assigned to an Entwine polygon so I was ending up with Entwine
+#   projects with no match when there actually was a match.
+#
+#   Also improved the logic used when matching projects using entwine project centroids. There are
+#   still a few projects that are being matched to the wrong USGS project. For most of these, the 
+#   match is coming from data collected prior to 2010. However, there are two projects in Indiana
+#   that are placed in Kansas (Entwine names: USGS_LPC_IN_Johnson_2011_LAS_2016 and
+#   USGS_LPC_IN_Marion_2011_LAS_2016). These projects also show up in Kansas in the Entwine data 
+#   collection so the problem is not on my end. I will try to drop these from the enhanced index
+#   but they appear to be duplicates and I don't know if there is a clean way to identify them.
+#
+#   Added a flag and logic to control removal of FullState projects from the Entwine collection.
+#
+#   Added a flag to do some final cleaning of the Entwine collection to remove projects that
+#   don't have a match in the USGS collection and projects that are incorrectly located.
+#
 library(sf)
 library(dplyr)
 
@@ -31,10 +49,22 @@ EntwinePolygonLayer <- "resources"
 commonProjection <- 3857
 
 # ---------->flags to control program flow
-UseLocalEntwinePolygonFile <- FALSE
+#UseLocalEntwinePolygonFile <- TRUE     # local runs
+UseLocalEntwinePolygonFile <- FALSE    # github runs
 #UseLocalUSGSPolygonFile <- TRUE      # for local runs
 UseLocalUSGSPolygonFile <- FALSE     # for GitHub runs
 UseUSGS_WESM <- TRUE
+
+# flag to remove "FullState" projects. There are 3 of these as of 11/2/2021 and they
+# cause some problems when searching for data coverage. Only the IA area has a corresponding
+# project in the USGS collection.
+# as of 11/2/2021, set this to TRUE to remove the FUllState areas.
+removeFullState <- TRUE
+
+# flag to do some "manual" cleaning to remove Entwine projects without a matching USGS project
+# and to remove projects that are incorrectly located in the Entwine collection. As of 11/2/2021,
+# there are 2 duplicated projects from IN that have their polygons in KS.
+manualClean <- TRUE
 
 # flag to display final project boundaries
 # we always want this off for GitHub runs
@@ -71,14 +101,20 @@ if (UseLocalEntwinePolygonFile) {
 }
 boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 
-# drop "FullState" projects. These are aggregations of other projects so, esentially, duplicate
+# drop "FullState" projects. These are aggregations of other projects so, essentially, duplicate
 # data. I think there is a corresponding "project" for the IA_FullState area in the USGS index
-# but the project details are not consistent with other areas. For KY and MN, the centroid matching
-# logic assigns attributes from a single project to the "FullState" area but these attributes are not
-# correct over the entire area
-#boundaries <- subset(boundaries, name != "KY_FullState")
-#boundaries <- subset(boundaries, name != "IA_FullState")
-#boundaries <- subset(boundaries, name != "MN_FullState")
+# but the project details are not consistent with other areas. Prior to the modifications to the
+# centroid matching logic, attributes from a single project were assigned to the "FullState" areas
+# but these attributes are not correct over the entire area. The FullState projects in MN is
+# assigned attributes for a single project that may not be correct for the data. The KY FullState
+# is not matched.
+if (removeFullState) {
+  boundaries <- subset(boundaries, name != "KY_FullState")
+  boundaries <- subset(boundaries, name != "IA_FullState")
+  boundaries <- subset(boundaries, name != "MN_FullState")
+  
+  message("Removed FullState projects from Entwine collection")
+}
 
 # reproject project boundaries to web mercator
 EntwineboundariesWebMerc <- st_transform(boundaries, crs = commonProjection)
@@ -103,6 +139,8 @@ rm(boundaries)
 # data frame instead of a vector. We could use $ and the column name but we want our column
 # name to be a variable so we can use different index files easily. The work-around is to copy 
 # the geometry to a temporary object, manipulate the columns, then re-attach the geometry.
+# However, when manipulating the columns, you can't remove or add any rows or else the geometry
+# won't match.
 
 # work on USGS index
 # copy the geometry
@@ -135,6 +173,12 @@ USGSboundariesWebMerc <- st_set_geometry(USGSboundariesWebMerc, g)
 # get rid of any features with NA in the project_id (or workunit) field
 # this MUST be done after re-attaching the geometry
 USGSboundariesWebMerc <- USGSboundariesWebMerc[!USGSboundariesWebMerc$drop, ]
+
+# drop projects that are 1/9 Arc Second
+# not a good idea...you end up with many older projects in the Entwine collection being
+# matched to newer projects in the USGS collection. These matches will result in bad
+# attributes (collection dates, crs info, etc) for the older projects
+#USGSboundariesWebMerc <- subset(USGSboundariesWebMerc, !grepl("1/9", USGSboundariesWebMerc$project))
 
 rm(g)
 
@@ -176,9 +220,10 @@ EntwineboundariesWebMerc$eSEQ <- -1
 # 0 = no match
 # 1 = single match...USGS collection name is found in 1 Entwine collection name
 # 2 = multiple matches...USGS collection name is found in several Entwine collection names
-# 3 = centroid match...centroid of Entwine polygon (largest polygon in boundary) is within USGS polygon (also largest polygon in boundary)
-# 4 = single match...Entwine collection name is found in 1 USGS collection name
-# 5 = multiple matches...Entwine collection name is found in several USGS collection names
+# 3 = centroid match...centroid of Entwine polygon (largest polygon in boundary) is within a single USGS polygon (also largest polygon in boundary)
+# 4 = centroid match...centroid of Entwine polygon (largest polygon in boundary) is within a multiple USGS polygon (also largest polygon in boundary)
+#                       best match is determined by lpc_pub_date and last 4 digits of entwine project name
+# 5 = manual match
 EntwineboundariesWebMerc$MatchMethod <- 0
 
 # search for project name in the USGSProjectIDField field in the USGS collection for matching
@@ -213,11 +258,13 @@ for (thePoly in 1:nrow(USGSboundariesWebMerc)) {
   if (length(result) == 0) {
     nomatches <- nomatches + 1
   } else if (length(result) > 1) {
-    EntwineboundariesWebMerc$eSEQ[result[1]] <- USGSboundariesWebMerc$SEQ[thePoly]
-      
-    EntwineboundariesWebMerc$MatchMethod[result[1]] <- 2
-      
-    multiplematches <- multiplematches + 1
+    for (m in 1:length(result)) {
+      EntwineboundariesWebMerc$eSEQ[result[m]] <- USGSboundariesWebMerc$SEQ[thePoly]
+        
+      EntwineboundariesWebMerc$MatchMethod[result[m]] <- 2
+        
+      multiplematches <- multiplematches + 1
+    }
   } else {
     EntwineboundariesWebMerc$eSEQ[result] <- USGSboundariesWebMerc$SEQ[thePoly]
       
@@ -227,12 +274,12 @@ for (thePoly in 1:nrow(USGSboundariesWebMerc)) {
   }
 }
 
-cat("Using", nrow(USGSboundariesWebMerc), "items in the USGS collection and",
-    nrow(EntwineboundariesWebMerc), "items in the Entwine collection:\n",
-    "  USGS", USGSProjectIDField, "found in Entwine ENTpid:\n",
-    "    No matches:", nomatches, "\n",
-    "    Multiple matches:", multiplematches, "\n",
-    "    Single matches:", matches, "\n"
+message("Using ", nrow(USGSboundariesWebMerc), " items in the USGS collection and ",
+    nrow(EntwineboundariesWebMerc), " items in the Entwine collection:\n",
+    "  USGS ", USGSProjectIDField, " found in Entwine ENTpid:\n",
+    "    No matches: ", nomatches, "\n",
+    "    Multiple matches: ", multiplematches, "\n",
+    "    Single matches: ", matches
 )
 
 # The above approach gets us a match for most projects in the entwine collection. There
@@ -264,7 +311,7 @@ cat("Using", nrow(USGSboundariesWebMerc), "items in the USGS collection and",
 # largest polygon in multi-polygon features
 missing <- EntwineboundariesWebMerc[EntwineboundariesWebMerc$eSEQ == -1, ]
 
-cat("After project identifier matching, there are", nrow(missing), "Entwine polygons with no match\n")
+message("After project identifier matching, there are ", nrow(missing), " Entwine polygons with no match")
 
 # This used to throw a warning regarding attributes are constant 
 # over geometries of x...the use of st_agr() is to prevent the warning.
@@ -278,13 +325,104 @@ cent <- st_centroid(missing, of_largest_polygon = TRUE)
 st_agr(USGSboundariesWebMerc) <- "constant"
 t <- st_intersection(cent, USGSboundariesWebMerc)
 
-cat("Found", nrow(t), "Entwine polygon centroids contained in USGS project polygons\n")
+message("Found ", nrow(t), " USGS project polygons that contain ", length(unique(t$id)), " Entwine polygon centroids")
 
-# set the USGS record in the entwine data...entwine id starts at 0
+matchProjects <- function(
+  pt,
+  areaMultiplier = 1.0,
+  method = "pub_year"
+) {
+  if (nrow(pt) > 1) {
+    match <- 1
+    if (method == "area") {
+      # compute area of entwine project
+      eArea <- as.numeric(st_area(NewEntwineboundariesWebMerc[NewEntwineboundariesWebMerc$id == (pt$id[1]), ]))
+      
+      # compute area of USGS project polygons
+      pArea <- data.frame(area = as.numeric(st_area(USGSboundariesWebMerc[USGSboundariesWebMerc$SEQ %in% pt$SEQ, ])))
+      pArea$index <- c(1:nrow(pArea))
+      
+      # sort by area
+      pArea <- pArea[order(pArea$area), ]
+      
+      # pick smallest area that is larger than entwine area
+      for ( i in 1:nrow(pt)) {
+        if (pArea$area[i] >= (eArea * areaMultiplier)) {
+          match <- pArea$index[i]
+          break
+        }
+      }
+    } else if (method == "pub_year") {
+      # try to pull a year from the last 4 characters of ENTpid
+      eYear <- as.numeric(substring(NewEntwineboundariesWebMerc$ENTpid[NewEntwineboundariesWebMerc$id == pt$id[1]],
+                                 nchar(NewEntwineboundariesWebMerc$ENTpid[NewEntwineboundariesWebMerc$id == pt$id[1]]) - 3)
+                          )
+      
+      # pull a year from lpc_pub_date
+      pYear <- data.frame(Year = as.numeric(substr(USGSboundariesWebMerc$lpc_pub_date[USGSboundariesWebMerc$SEQ %in% pt$SEQ], 1, 4)))
+      pYear$index <- c(1:nrow(pYear))
+
+      # sort by year
+      pYear <- pYear[order(pYear$Year), ]
+
+      #cat(eYear, "     ", pYear$Year, "\n")
+      
+      # pick smallest area that is larger than entwine area
+      for ( i in 1:nrow(pt)) {
+        if (!is.na(pYear$Year[i])) {
+          if (pYear$Year[i] >= eYear) {
+            match <- pYear$index[i]
+            break
+          }
+        }
+      }
+    }
+    return(match)
+  } else
+    return(1)
+}
+
+# we get multiple polygons for some centroids
 NewEntwineboundariesWebMerc <- EntwineboundariesWebMerc
-NewEntwineboundariesWebMerc$eSEQ[t$id + 1] <- t$SEQ
+message("Matching USGS projects using Entwine project centroids...")
+for (u in unique(t$id)) {
+  ut <- t[t$id == u, ]
+  if (nrow(ut) > 0) {
+    message("For id = ", u, ": ENTpid = ", NewEntwineboundariesWebMerc$ENTpid[NewEntwineboundariesWebMerc$id == u])
+    if (nrow(ut) == 1) {
+      NewEntwineboundariesWebMerc$eSEQ[NewEntwineboundariesWebMerc$id == u] <- ut$SEQ[1]
+      NewEntwineboundariesWebMerc$MatchMethod[NewEntwineboundariesWebMerc$id == u] <- 3
+      message("   Single centroid match: ", ut$workunit[1], "\n")
+    } else {
+      # look for best match
+      ui <- matchProjects(ut)
+      NewEntwineboundariesWebMerc$eSEQ[NewEntwineboundariesWebMerc$id == ut$id[ui]] <- ut$SEQ[ui]
+      NewEntwineboundariesWebMerc$MatchMethod[NewEntwineboundariesWebMerc$id == ut$id[ui]] <- 4
+      message("   Found:")
+      for (i in 1:nrow(ut)) message("      ", ut$workunit[i], "  lpc_pub_date: ", ut$lpc_pub_date[i])
+      message("   Matched: ", ut$workunit[ui],  "  lpc_pub_date: ", ut$lpc_pub_date[ui], "\n")
+      
+#      for (i in 1:nrow(ut)) {
+#        NewEntwineboundariesWebMerc$eSEQ[NewEntwineboundariesWebMerc$id == ut$id[i]] <- ut$eSEQ[i]
+#        NewEntwineboundariesWebMerc$MatchMethod[NewEntwineboundariesWebMerc$id == ut$id[i]] <- 3
+#        message("   Found: ", ut$workunit[i])
+#      }
+    }
+  }
+  
+#  message("id = ", u, " ENTpid = ", NewEntwineboundariesWebMerc$ENTpid[NewEntwineboundariesWebMerc$id == u])
+#  for (i in 1:nrow(ut)) {
+#    message("   Found: ", ut$workunit[i])
+#  }
+}
 
-NewEntwineboundariesWebMerc$MatchMethod[t$id + 1] <- 3
+# there is 1 area in IN that has a typo in the USGS project name and it has no lpc_pub_date value.
+# this results in an incorrect match that we can correct manually
+# entwine ENTpid = USGS_LPC_IN_Hendricks_2011_LAS_2016
+# USFS workunit = IN_HendricksCo_2011
+NewEntwineboundariesWebMerc$eSEQ[NewEntwineboundariesWebMerc$ENTpid == "USGS_LPC_IN_Hendricks_2011_LAS_2016"] <- USGSboundariesWebMerc$SEQ[USGSboundariesWebMerc$workunit == "IN_HendricksCo_2011"]
+NewEntwineboundariesWebMerc$MatchMethod[NewEntwineboundariesWebMerc$ENTpid == "USGS_LPC_IN_Hendricks_2011_LAS_2016"] <- 5
+
 
 names(NewEntwineboundariesWebMerc)[names(NewEntwineboundariesWebMerc) == "eSEQ"] <- "SEQ"
 
@@ -295,8 +433,20 @@ NewEntwineboundariesWebMerc <- final
 # count the number of entwine polygons without a match
 missing <- NewEntwineboundariesWebMerc[NewEntwineboundariesWebMerc$SEQ == -1, ]
 if (nrow(missing)) {
-  message("After all matching, there are still ", nrow(missing), " entwine polygons with no matching USGS polygon:")
+  message("After all matching, there are still ", nrow(missing), " Entwine polygons with no matching USGS polygon:")
   for (name in missing$name) message(name)
+}
+
+if (manualClean) {
+  # remove projects without a match
+  NewEntwineboundariesWebMerc <- subset(NewEntwineboundariesWebMerc, !(SEQ == -1))
+  
+  # remove projects that are in the wrong place
+  # 2 projects for IN are showing up in KS. There are duplicate projects in the correct locations
+  NewEntwineboundariesWebMerc <- subset(NewEntwineboundariesWebMerc, !(ENTpid == "USGS_LPC_IN_Johnson_2011_LAS_2016" & workunit == "KS_FTRILEY_2006"))
+  NewEntwineboundariesWebMerc <- subset(NewEntwineboundariesWebMerc, !(ENTpid == "USGS_LPC_IN_Marion_2011_LAS_2016" & workunit == "KS_RILEY_2010"))
+  
+  message("Manual cleaning complete")
 }
 
 # write off new entwine polygons...includes polygons that don't have a match in the USGS collection.
@@ -322,4 +472,3 @@ write_sf(NewEntwineboundariesWebMerc,
 
 if (showMaps) mapview(list(NewEntwineboundariesWebMerc, USGSboundariesWebMerc))
 if (showMaps) mapview(NewEntwineboundariesWebMerc)
-
