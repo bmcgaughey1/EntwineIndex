@@ -24,15 +24,20 @@ by Howard Butler (GitHub repository: [usgs-lidar](https://github.com/hobu/usgs-l
 3DEP data collection. The goal is to add lidar project
 information to the Entwine index to facilitate querying the index for data covering specific locations and dates.
 
-This code is run daily to maintain synchronization with the Entwine and WESM index files.
+Some projects are removed from the Entwine index. These include FullState projects for IA, KY, and MN and
+two projects in Indiana that are incorrectly located in Kansas. For these Indiana projects duplicates
+exist in the Entwine collection that are correctly located.
+
+This code is run every few days to maintain synchronization with the Entwine and WESM index files.
 
 URL for the index is:
 `https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg`
 
 You can grab a copy of the 
 [index](https://raw.githubusercontent.com/bmcgaughey1/EntwineIndex/main/Index/ENTWINEBoundaries.gpkg) 
-and store it locally. However, the index is fairly small so direct reads take only a few seconds. You 
-can read the index directly from GitHub using *st_read* from the *sf* package as shown in the example below.
+and store it locally. However, I do not recommend maintaining a local copy as the index changes frequently. The
+index is fairly small so direct reads take only a few seconds. You can read the index directly from GitHub 
+using *st_read* from the *sf* package as shown in the example code below.
 
 The index is used with my [USGSlidar](https://github.com/bmcgaughey1/USGSlidar) R package to help discover
 lidar data for specific locations and dates. The index can be accessed in the package using 
