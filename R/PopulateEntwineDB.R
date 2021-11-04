@@ -36,12 +36,15 @@ library(dplyr)
 #                                         Configuration...
 # -------------------------------------------------------------------------------------------------
 
+# show current working directory
+message(getwd())
+
 # ---------->folder and filenames
 # this is only needed when running from local instance of rstudio
 # it will fail when run on GitHub so we catch the error
 tryCatch(setwd("G:/R_Stuff/EntwineIndex"), error = function(e) NULL)
 
-Folder <- "./"
+Folder <- ""
 EntwinePolygonFile <- "resources.geojson"   # only for local file...https link is hard-coded for Howard's github location
 EntwinePolygonLayer <- "resources"
 
@@ -458,9 +461,10 @@ if (saveDatedIndex) {
 }
 
 # write to Index folder so the updated boundaries will be uploaded to github
-write_sf(NewEntwineboundariesWebMerc,
+st_write(NewEntwineboundariesWebMerc,
          paste0(Folder, "Index/ENTWINEBoundaries.gpkg"),
-         layer = "ENTWINEBoundaries"
+         layer = "ENTWINEBoundaries",
+         delete_dsn = TRUE
 )
 
 # # write copy with date to Index folder so the boundaries will be uploaded to github
