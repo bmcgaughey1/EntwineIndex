@@ -111,6 +111,18 @@ boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 # but these attributes are not correct over the entire area. The FullState projects in MN is
 # assigned attributes for a single project that may not be correct for the data. The KY FullState
 # is not matched.
+#
+# The statewide or fullstate projects are problematic. For some states, the fullstate project duplicates
+# all the data in the state but for others this is not the case. Some projects also have "statewide"
+# in project names but the project may only cover a single county (e.g., Indiana). For Iowa, the fullstate
+# project has older data covering the entire state but about 2/3 of the state has 2020 data not included
+# in the full state project. For Minnesota, the fullstate project has data for areas not covered by any other 
+# project.
+#
+# Overall, it may be better to keep these projects and drop clips based on some criteria that finds duplicate
+# clips. However, some of these aggregated projects may not have collection date information, etc because
+# the matching logic below fails to find a match.
+#
 if (removeFullState) {
   boundaries <- subset(boundaries, name != "KY_FullState")
   boundaries <- subset(boundaries, name != "IA_FullState")
