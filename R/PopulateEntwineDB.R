@@ -62,6 +62,8 @@ UseUSGS_WESM <- TRUE
 # cause some problems when searching for data coverage. Only the IA area has a corresponding
 # project in the USGS collection.
 # as of 11/2/2021, set this to TRUE to remove the FUllState areas.
+#
+# *****See additional comments near the code that drops these projects.
 removeFullState <- TRUE
 
 # flag to do some "manual" cleaning to remove Entwine projects without a matching USGS project
