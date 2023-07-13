@@ -375,21 +375,24 @@ matchProjects <- function(
                                  nchar(NewEntwineboundariesWebMerc$ENTpid[NewEntwineboundariesWebMerc$id == pt$id[1]]) - 3)
                           )
       
-      # pull a year from lpc_pub_date
-      pYear <- data.frame(Year = as.numeric(substr(USGSboundariesWebMerc$lpc_pub_date[USGSboundariesWebMerc$SEQ %in% pt$SEQ], 1, 4)))
-      pYear$index <- c(1:nrow(pYear))
-
-      # sort by year
-      pYear <- pYear[order(pYear$Year), ]
-
-      #cat(eYear, "     ", pYear$Year, "\n")
-      
-      # pick smallest area that is larger than entwine area
-      for ( i in 1:nrow(pt)) {
-        if (!is.na(pYear$Year[i])) {
-          if (pYear$Year[i] >= eYear) {
-            match <- pYear$index[i]
-            break
+      # validate the year...ran into this case: For id = 511: ENTpid = LA_2021GNO_1_C22 where there is no year at the end of the id
+      if (eYear > 2000 & eYear < 3000) {
+        # pull a year from lpc_pub_date
+        pYear <- data.frame(Year = as.numeric(substr(USGSboundariesWebMerc$lpc_pub_date[USGSboundariesWebMerc$SEQ %in% pt$SEQ], 1, 4)))
+        pYear$index <- c(1:nrow(pYear))
+  
+        # sort by year
+        pYear <- pYear[order(pYear$Year), ]
+  
+        #cat(eYear, "     ", pYear$Year, "\n")
+        
+        # pick smallest area that is larger than entwine area
+        for ( i in 1:nrow(pt)) {
+          if (!is.na(pYear$Year[i])) {
+            if (pYear$Year[i] >= eYear) {
+              match <- pYear$index[i]
+              break
+            }
           }
         }
       }
