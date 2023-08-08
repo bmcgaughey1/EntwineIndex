@@ -6,7 +6,7 @@ name: Update EntwinePlus Index
 on:
   # run at 8:00pm every 3rd day...will reset on first of month
   schedule:
-    - cron: "13 20 */3 * *"
+    - cron: "13 20 */5 * *"
 
   # Triggers the workflow on push or pull request events but only for the main branch
 #  push:
