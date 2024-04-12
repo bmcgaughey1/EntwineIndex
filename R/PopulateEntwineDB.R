@@ -125,11 +125,13 @@ boundaries <- st_read(File, EntwinePolygonLayer, stringsAsFactors = FALSE)
 # clips. However, some of these aggregated projects may not have collection date information, etc because
 # the matching logic below fails to find a match.
 #
+# 4/12/2024 modified the code so it finds any project with "fullstate" in its name and drops them.
+#
 if (removeFullState) {
-  boundaries <- subset(boundaries, name != "KY_FullState")
-  boundaries <- subset(boundaries, name != "IA_FullState")
-  boundaries <- subset(boundaries, name != "MN_FullState")
+  t <- grepl("fullstate", boundaries$name, ignore.case = TRUE)
   
+  boundaries <- subset(boundaries, !t)
+
   message("Removed FullState projects from Entwine collection")
 }
 
