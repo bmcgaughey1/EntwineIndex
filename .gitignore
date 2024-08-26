@@ -3,4 +3,5 @@
 .RData
 .Ruserdata
 WESM.gpkg
+WESM.gpkg.aux.xml
 resources.geojson
