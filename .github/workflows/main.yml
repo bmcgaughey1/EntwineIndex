@@ -62,7 +62,7 @@ jobs:
 
       - name: Update the index
         run: |
-          source("R/PopulateEntwineDB.R")
+          source("R/PopulateEntwineDB_FAST.R")
         shell: Rscript {0} 
 
       - name: Commit files
