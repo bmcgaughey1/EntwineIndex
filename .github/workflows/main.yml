@@ -45,12 +45,12 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
-      - name: Check for cached R packages
-        id: package-cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.R_LIBS_USER }}
-          key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('R/PopulateEntwineDB.R') }}
+      #- name: Check for cached R packages
+      #  id: package-cache
+      #  uses: actions/cache@v4
+      #  with:
+      #    path: ${{ env.R_LIBS_USER }}
+      #    key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('R/PopulateEntwineDB.R') }}
 
       - name: Load packages
         if: steps.package-cache.outputs.cache-hit != 'true'
